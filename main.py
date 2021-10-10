@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 from pathlib import Path
+from shutil import copyfile
 
 
 def arguments():
@@ -46,7 +47,32 @@ def loci_paralogs_remove(loci, paralogs):
     return loci - paralogs
 
 
+def copy_alleles(
+    filtered_loci: set[str], sequence_directory: Path, allele_directory: Path
+) -> None:
+
+    allele_directory.mkdir(parents=True, exist_ok=True)
+
+    feature_sequences = sequence_directory.glob("*.fasta")
+
+    for seq in feature_sequences:
+
+        if seq.replace(".", "_").split("_")[0] in filtered_loci:
+
+            dst = allele_directory.joinpath(seq.name)
+
+            copyfile(seq, dst)
+
+    # check that all is well
+    if len(list(allele_directory.glob("*.fasta"))) != len(filtered_loci):
+        raise IncompleteCopyError
+
+
 def main():
+    pass
+
+
+class IncompleteCopyError(Exception):
     pass
 
 
