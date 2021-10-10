@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from shutil import copyfile
 from Bio import SeqIO
-import statistics
+import sys
 
 
 def arguments():
@@ -25,15 +25,25 @@ def arguments():
         default=0.01,
         help="Maximum allowed value for (min_length / max_length) for alleles of a given locus",
     )
+
     parser.add_argument(
         "pangenome", type=Path, help="Pangenome directory created by PIRATE"
     )
 
     parser.add_argument(
-        "output", type=Path, help="Output directory containing cgmlst alleles"
+        "--output",
+        "-o",
+        required=True,
+        type=Path,
+        help="Output directory containing cgMLST alleles",
     )
 
     args = parser.parse_args()
+
+    if not args.pangenome.is_dir():
+        msg = f"{args.pangenome} is not a directory"
+        print(msg, file=sys.stderr)
+        sys.exit(1)
 
     return args
 
@@ -71,7 +81,7 @@ def is_length_variable(locus: Path, length_tolerance: float):
     with locus.open("r") as f:
         lengths = [len(rec.seq) for rec in SeqIO.parse(f, "fasta")]
 
-    minimum, median, maximum = min(lengths), statistics.median(lengths), max(lengths)
+    minimum, maximum = min(lengths), max(lengths)
 
     return maximum / minimum > length_tolerance
 
