@@ -57,7 +57,7 @@ def threshold_count_calculate(gffs_dir: Path, threshold: float) -> int:
 
 def loci_over_threshold(gene_families: Path, threshold_count: int) -> set[str]:
 
-    gene_families = pd.read_csv(gene_families, sep=",")
+    gene_families = pd.read_csv(gene_families, sep="\t")
 
     over_threshold = gene_families["number_genomes"] > threshold_count
 
