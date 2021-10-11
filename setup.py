@@ -4,7 +4,7 @@ from rackham import __version__
 setup(
     name="rackham",
     version=__version__,
-    packages=find_packages,
+    packages=find_packages(),
     install_requires=["biopython", "pandas"],
     author="Dillon O.R. Barker",
     author_email="dillon.barker@phac-aspc.gc.ca",
