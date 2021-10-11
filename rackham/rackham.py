@@ -83,7 +83,7 @@ def is_length_variable(locus: Path, length_tolerance: float):
 
     minimum, maximum = min(lengths), max(lengths)
 
-    return maximum / minimum > length_tolerance
+    return (1.0 - (maximum / minimum)) > length_tolerance
 
 
 def copy_alleles(
