@@ -4,6 +4,11 @@ from pathlib import Path
 from shutil import copyfile
 from Bio import SeqIO
 import sys
+import logging
+
+logging.basicConfig(
+    format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO
+)
 
 
 def arguments():
@@ -51,8 +56,13 @@ def arguments():
 def threshold_count_calculate(gffs_dir: Path, threshold: float) -> int:
 
     n_genomes = len(list(gffs_dir.glob("*.gff")))
+    logging.info(f"n_genomes: {n_genomes}")
 
-    return round(threshold * n_genomes)
+    cutoff_count = round(threshold * n_genomes)
+
+    logging.info(f"cutoff_count: {cutoff_count}")
+
+    return cutoff_count
 
 
 def loci_over_threshold(gene_families: Path, threshold_count: int) -> set[str]:
@@ -62,6 +72,8 @@ def loci_over_threshold(gene_families: Path, threshold_count: int) -> set[str]:
     over_threshold = gene_families["number_genomes"] > threshold_count
 
     loci = gene_families["gene_family"].loc[over_threshold]
+
+    logging.info(f"loci over threshold: {len(loci)}")
 
     return set(loci)
 
@@ -83,8 +95,11 @@ def is_length_variable(locus: Path, length_tolerance: float):
 
     minimum, maximum = min(lengths), max(lengths)
 
-    return (1.0 - (maximum / minimum)) > length_tolerance
+    is_variable = (1.0 - (maximum / minimum)) > length_tolerance
 
+    logging.info(f"{minimum} {maximum} {is_variable}")
+
+    return is_variable
 
 def copy_alleles(
     length_tolerance: float,
@@ -99,9 +114,15 @@ def copy_alleles(
 
     for seq in feature_sequences:
 
-        if str(seq).replace(".", "_").split("_")[0] in filtered_loci:
+        bn = seq.stem.replace(".", "_").split("_")[0]
+        logging.info(bn)
+
+        if bn in filtered_loci:
 
             if not is_length_variable(seq, length_tolerance):
+
+                logging.info(f"Copying {seq}")
+
                 dst = allele_directory.joinpath(seq.name)
 
                 copyfile(seq, dst)
