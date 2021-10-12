@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import argparse
 from pathlib import Path
@@ -192,6 +193,18 @@ def convert_locus(
     return fasta, lookup
 
 
+def create_st_table(calls_table: pd.DataFrame) -> pd.DataFrame:
+
+    column_order = ["ST"] + calls_table.columns
+
+    sequence_types = calls_table.drop_duplicates()
+    sequence_types["ST"] = np.arange(1, len(sequence_types) + 1)
+
+    sequence_types = sequence_types.reset_index(drop=True)[column_order]
+
+    return sequence_types
+
+
 def filtered_loci_get(
     carriage_threshold: float,
     length_tolerance: float,
@@ -240,6 +253,9 @@ def main():
     )
 
     calls_table.to_csv(args.output / "calls.tsv", sep="\t", index_label="genome")
+
+    sequence_types = create_st_table(calls_table)
+    sequence_types.to_csv(args.output / "sts.txt", sep="\t", index=False)
 
 
 class IncompleteCopyError(Exception):
