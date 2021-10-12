@@ -195,7 +195,7 @@ def convert_locus(
 
 def create_st_table(calls_table: pd.DataFrame) -> pd.DataFrame:
 
-    column_order = ["ST"] + calls_table.columns
+    column_order = ["ST"] + [str(col) for col in calls_table.columns]
 
     sequence_types = calls_table.drop_duplicates()
     sequence_types["ST"] = np.arange(1, len(sequence_types) + 1)
