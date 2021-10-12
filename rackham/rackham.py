@@ -1,7 +1,6 @@
 import pandas as pd
 import argparse
 from pathlib import Path
-from shutil import copyfile
 from Bio import SeqIO
 import sys
 import logging
@@ -20,7 +19,7 @@ def arguments():
         "-t",
         type=float,
         default=1.0,
-        help="Proportion of genomes a locus must be present in to be included",
+        help="Proportion of genomes a locus must be present in to be included [1.0]",
     )
 
     parser.add_argument(
@@ -28,11 +27,14 @@ def arguments():
         "-l",
         type=float,
         default=0.01,
-        help="Maximum allowed value for (min_length / max_length) for alleles of a given locus",
+        help="Maximum allowed value for (min_length / max_length) for alleles of a given locus [0.01]",
     )
 
     parser.add_argument(
-        "pangenome", type=Path, help="Pangenome directory created by PIRATE"
+        "--mode",
+        choices=("mlst", "fsac"),
+        default="fsac",
+        help="Allele header format to use. mlst = '>aspA_1', fsac = '>1' [fsac]",
     )
 
     parser.add_argument(
@@ -41,6 +43,10 @@ def arguments():
         required=True,
         type=Path,
         help="Output directory containing cgMLST alleles",
+    )
+
+    parser.add_argument(
+        "pangenome", type=Path, help="Pangenome directory created by PIRATE"
     )
 
     args = parser.parse_args()
@@ -101,12 +107,16 @@ def is_length_variable(locus: Path, length_tolerance: float):
 
     return is_variable
 
+
 def copy_alleles(
     length_tolerance: float,
     filtered_loci: set[str],
     sequence_directory: Path,
     allele_directory: Path,
-) -> None:
+    mode: str,
+) -> dict:
+
+    lookups = {}
 
     allele_directory.mkdir(parents=True, exist_ok=True)
 
@@ -114,10 +124,10 @@ def copy_alleles(
 
     for seq in feature_sequences:
 
-        bn = seq.stem.replace(".", "_").split("_")[0]
-        logging.info(bn)
+        basename = seq.stem.replace(".", "_").split("_")[0]
+        logging.info(basename)
 
-        if bn in filtered_loci:
+        if basename in filtered_loci:
 
             if not is_length_variable(seq, length_tolerance):
 
@@ -125,7 +135,56 @@ def copy_alleles(
 
                 dst = allele_directory.joinpath(seq.name)
 
-                copyfile(seq, dst)
+                fasta, locus_lookup = convert_locus(seq, basename, mode)
+
+                lookups[basename] = locus_lookup
+
+                dst.write_text(fasta)
+
+    return lookups
+
+
+def convert_call_table(lookups, gene_families):
+
+    selected_loci = lookups.keys()
+
+    loci = pd.read_csv(gene_families, sep="\t")
+    selected_rows = loci["gene_family"].isin(selected_loci)
+    index = loci["gene_family"].loc[selected_rows]
+
+    selected_columns = list(range(22, len(loci.headers) - 1))
+
+    loci = loci.loc[selected_rows].iloc[:, selected_columns]
+    loci.index = index
+    loci = loci.transpose()
+
+    for locus, values in loci.itercols():
+        updated_values = values.map(lambda call: lookups[locus][call])
+        loci[locus] = updated_values
+
+    return loci
+
+
+def convert_locus(
+    filepath: Path, basename: str, mode="mlst"
+) -> tuple[str, dict[str, int]]:
+
+    alleles = []
+    lookup = {}
+
+    with filepath.open("r") as f:
+
+        for allele_number, record in enumerate(SeqIO.parse(f, "fasta"), 1):
+            name = (
+                f"{basename}_{allele_number}" if mode == "mlst" else f"{allele_number}"
+            )
+            seq = str(record.seq)
+
+            alleles.append(f">{name}\n{seq}")
+            lookup[str(record.id)] = allele_number
+
+    fasta = "\n".join(alleles)
+    return fasta, lookup
 
 
 def filtered_loci_get(
@@ -136,7 +195,8 @@ def filtered_loci_get(
     gene_families: Path,
     feature_sequences_directory: Path,
     alleles_directory: Path,
-) -> None:
+    mode: str,
+) -> pd.DataFrame:
 
     threshold_count = threshold_count_calculate(gffs_dir, carriage_threshold)
 
@@ -146,27 +206,35 @@ def filtered_loci_get(
 
     high_carriage_orthologs = loci_paralogs_remove(high_carriage, paralogs)
 
-    copy_alleles(
+    lookups = copy_alleles(
         length_tolerance=length_tolerance,
         filtered_loci=high_carriage_orthologs,
         sequence_directory=feature_sequences_directory,
         allele_directory=alleles_directory,
+        mode=mode,
     )
+
+    calls_table = convert_call_table(lookups, gene_families)
+
+    return calls_table
 
 
 def main():
 
     args = arguments()
 
-    filtered_loci_get(
+    calls_table = filtered_loci_get(
         carriage_threshold=args.carriage_threshold,
         length_tolerance=args.length_tolerance,
         gffs_dir=args.pangenome / "modified_gffs/",
         paralog_clusters=args.pangenome / "paralog_clusters.tab",
         gene_families=args.pangenome / "PIRATE.gene_families.tsv",
         feature_sequences_directory=args.pangenome / "feature_sequences/",
-        alleles_directory=args.output,
+        alleles_directory=args.output / "alleles",
+        mode=args.mode,
     )
+
+    calls_table.to_csv(args.output / "calls.tsv", sep="\t", index_label="genome")
 
 
 class IncompleteCopyError(Exception):
