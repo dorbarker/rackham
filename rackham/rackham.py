@@ -4,6 +4,7 @@ from pathlib import Path
 from Bio import SeqIO
 import sys
 import logging
+import numpy as np
 
 logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO
@@ -159,7 +160,9 @@ def convert_call_table(lookups, gene_families):
     loci = loci.transpose()
 
     for locus, values in loci.iteritems():
-        updated_values = values.map(lambda call: lookups[locus][call])
+        updated_values = values.map(
+            lambda call: 0 if np.isnan(call) else lookups[locus][call]
+        )
         loci[locus] = updated_values
 
     return loci
