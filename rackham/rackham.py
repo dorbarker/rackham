@@ -158,7 +158,7 @@ def convert_call_table(lookups, gene_families):
     loci.index = index
     loci = loci.transpose()
 
-    for locus, values in loci.itercols():
+    for locus, values in loci.iteritems():
         updated_values = values.map(lambda call: lookups[locus][call])
         loci[locus] = updated_values
 
