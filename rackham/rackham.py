@@ -4,7 +4,6 @@ from pathlib import Path
 from Bio import SeqIO
 import sys
 import logging
-import numpy as np
 
 logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO
@@ -136,6 +135,9 @@ def copy_alleles(
 
                 dst = allele_directory.joinpath(seq.name)
 
+                if mode == "mlst":
+                    dst = dst.with_suffix(".tfa")
+
                 fasta, locus_lookup = convert_locus(seq, basename, mode)
 
                 lookups[basename] = locus_lookup
@@ -161,7 +163,7 @@ def convert_call_table(lookups, gene_families):
 
     for locus, values in loci.iteritems():
         updated_values = values.map(
-            lambda call: 0 if np.isnan(call) else lookups[locus][call]
+            lambda call: 0 if pd.isnull(call) else lookups[locus][call]
         )
         loci[locus] = updated_values
 
