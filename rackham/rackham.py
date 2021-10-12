@@ -152,7 +152,7 @@ def convert_call_table(lookups, gene_families):
     selected_rows = loci["gene_family"].isin(selected_loci)
     index = loci["gene_family"].loc[selected_rows]
 
-    selected_columns = list(range(22, len(loci.headers) - 1))
+    selected_columns = list(range(22, len(loci.columns) - 1))
 
     loci = loci.loc[selected_rows].iloc[:, selected_columns]
     loci.index = index
