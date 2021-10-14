@@ -6,6 +6,8 @@ from Bio import SeqIO
 import sys
 import logging
 
+from rackham import __version__
+
 logging.basicConfig(
     format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO
 )
@@ -52,6 +54,10 @@ def arguments():
         required=True,
         type=Path,
         help="Output directory containing cgMLST alleles",
+    )
+
+    parser.add_argument(
+        "-v", "--version", action="version", version=f"{parser.prog} {__version__}"
     )
 
     parser.add_argument(

@@ -1,7 +1,7 @@
 # cgMLST definition from PIRATE pangenomes
 
 ```
-usage: rackham.py [-h] [--carriage-threshold CARRIAGE_THRESHOLD] [--length-tolerance LENGTH_TOLERANCE] [--max-gaps MAX_GAPS] [--mode {mlst,fsac}] --output OUTPUT pangenome
+usage: rackham.py [-h] [--carriage-threshold CARRIAGE_THRESHOLD] [--length-tolerance LENGTH_TOLERANCE] [--max-gaps MAX_GAPS] [--mode {mlst,fsac}] --output OUTPUT [-v] pangenome
 
 positional arguments:
   pangenome             Pangenome directory created by PIRATE
@@ -17,5 +17,6 @@ optional arguments:
   --mode {mlst,fsac}    Allele header format to use. mlst = '>aspA_1', fsac = '>1' [fsac]
   --output OUTPUT, -o OUTPUT
                         Output directory containing cgMLST alleles
+  -v, --version         show program's version number and exit
 
 ```
