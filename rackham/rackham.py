@@ -27,8 +27,16 @@ def arguments():
         "--length-tolerance",
         "-l",
         type=float,
-        default=0.01,
-        help="Maximum allowed value for (min_length / max_length) for alleles of a given locus [0.01]",
+        default=0.00,
+        help="Maximum allowed value for (min_length / max_length) for alleles of a given locus [0.00]",
+    )
+
+    parser.add_argument(
+        "--max-gaps",
+        "-g",
+        type=int,
+        default=0,
+        help="Maximum allowable gaps in a locus [0]",
     )
 
     parser.add_argument(
@@ -95,16 +103,21 @@ def loci_paralogs_remove(loci, paralogs):
     return loci - paralogs
 
 
-def is_length_variable(locus: Path, length_tolerance: float):
+def is_length_variable(locus: Path, length_tolerance: float, max_gaps: int):
 
+    lengths = []
+    gaps = []
     with locus.open("r") as f:
-        lengths = [len(rec.seq) for rec in SeqIO.parse(f, "fasta")]
+        for record in SeqIO.parse(f, "fasta"):
+            lengths.append(len(record.seq))
+            gaps.append(str(record.seq).count("-"))
 
     minimum, maximum = min(lengths), max(lengths)
 
-    is_variable = (1.0 - (maximum / minimum)) > length_tolerance
+    is_variable_length = (1.0 - (maximum / minimum)) > length_tolerance
+    is_excessively_gapped = max(gaps) > max_gaps
 
-    logging.info(f"{minimum} {maximum} {is_variable}")
+    is_variable = is_variable_length or is_excessively_gapped
 
     return is_variable
 
@@ -115,6 +128,7 @@ def copy_alleles(
     sequence_directory: Path,
     allele_directory: Path,
     mode: str,
+    max_gaps: int,
 ) -> dict:
 
     lookups = {}
@@ -130,7 +144,7 @@ def copy_alleles(
 
         if basename in filtered_loci:
 
-            if not is_length_variable(seq, length_tolerance):
+            if not is_length_variable(seq, length_tolerance, max_gaps):
 
                 logging.info(f"Copying {seq}")
 
@@ -214,6 +228,7 @@ def filtered_loci_get(
     feature_sequences_directory: Path,
     alleles_directory: Path,
     mode: str,
+    max_gaps: int,
 ) -> pd.DataFrame:
 
     threshold_count = threshold_count_calculate(gffs_dir, carriage_threshold)
@@ -230,6 +245,7 @@ def filtered_loci_get(
         sequence_directory=feature_sequences_directory,
         allele_directory=alleles_directory,
         mode=mode,
+        max_gaps=max_gaps,
     )
 
     calls_table = convert_call_table(lookups, gene_families)
@@ -250,6 +266,7 @@ def main():
         feature_sequences_directory=args.pangenome / "feature_sequences/",
         alleles_directory=args.output / "alleles",
         mode=args.mode,
+        max_gaps=args.max_gaps,
     )
 
     calls_table.to_csv(args.output / "calls.tsv", sep="\t", index_label="genome")
