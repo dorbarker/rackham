@@ -159,9 +159,12 @@ def copy_alleles(
                 if mode == "mlst":
                     dst = dst.with_suffix(".tfa")
 
-                fasta, locus_lookup = convert_locus(seq, basename, mode)
+                seq_names = cluster_locus(seq)
+                allele_lookup = name_alleles(seq_names)
 
-                lookups[basename] = locus_lookup
+                lookups[basename] = allele_lookup
+
+                fasta = format_renamed_fasta(seq_names, allele_lookup, basename, mode)
 
                 dst.write_text(fasta)
 
@@ -176,7 +179,7 @@ def convert_call_table(lookups, gene_families):
     selected_rows = loci["gene_family"].isin(selected_loci)
     index = loci["gene_family"].loc[selected_rows]
 
-    selected_columns = list(range(22, len(loci.columns) - 1))
+    selected_columns = list(range(20, len(loci.columns) - 1))
 
     loci = loci.loc[selected_rows].iloc[:, selected_columns]
     loci.index = index
@@ -191,26 +194,53 @@ def convert_call_table(lookups, gene_families):
     return loci
 
 
-def convert_locus(
-    filepath: Path, basename: str, mode="mlst"
-) -> tuple[str, dict[str, int]]:
+def cluster_locus(filepath: Path) -> dict[str, list[str]]:
 
-    alleles = []
-    lookup = {}
+    alleles = {}
 
     with filepath.open("r") as f:
-
-        for allele_number, record in enumerate(SeqIO.parse(f, "fasta"), 1):
-            name = (
-                f"{basename}_{allele_number}" if mode == "mlst" else f"{allele_number}"
-            )
+        for record in SeqIO.parse(f, "fasta"):
             seq = str(record.seq)
+            name = record.id
 
-            alleles.append(f">{name}\n{seq}")
-            lookup[str(record.id)] = allele_number
+            try:
+                alleles[seq].append(name)
+            except KeyError:
+                alleles[seq] = [name]
 
-    fasta = "\n".join(alleles)
-    return fasta, lookup
+    return alleles
+
+
+def name_alleles(seq_names: dict[str, list[str]]) -> dict[str, int]:
+
+    allele_number_lookup = {}
+
+    for names in seq_names.values():
+        for i, name in enumerate(names, 1):
+            allele_number_lookup[name] = i
+
+    return allele_number_lookup
+
+
+def format_renamed_fasta(
+    seq_names: dict[str, list[str]],
+    allele_number_lookup: dict[str, int],
+    basename: str,
+    mode: str,
+):
+
+    leader = f"{basename}_" if mode == "mlst" else ""
+    multifasta = []
+    for sequence, names in seq_names.items():
+        allele_num = allele_number_lookup[names[0]]
+
+        multifasta.append((allele_num, sequence))
+
+    formatted_multifasta = "\n".join(
+        [f">{leader}{i}\n{seq}" for i, seq in sorted(multifasta)]
+    )
+
+    return formatted_multifasta
 
 
 def create_st_table(calls_table: pd.DataFrame) -> pd.DataFrame:
