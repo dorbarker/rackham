@@ -215,8 +215,8 @@ def name_alleles(seq_names: dict[str, list[str]]) -> dict[str, int]:
 
     allele_number_lookup = {}
 
-    for names in seq_names.values():
-        for i, name in enumerate(names, 1):
+    for i, names in enumerate(seq_names.values(), 1):
+        for name in names:
             allele_number_lookup[name] = i
 
     return allele_number_lookup
